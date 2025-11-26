@@ -7,11 +7,8 @@
  * @param array|null $order
  * @param array|null $limit
  * @param array|null $group
- * @param array<array>|null $joins  Format :
- *        [
- *            ["INNER", "table2", "table1.col", "table2.col"],
- *            ["LEFT", "tableX", "tableA.col", "tableX.col"],
- *        ]
+ * @param array|null $joins
+ * @param array|null $having
  *
  * @return array{query:string, params:array}
  * @throws Exception
@@ -21,15 +18,14 @@ function Select(
     ?array $fields = null,
     ?array $where = null,
     ?array $order = null,
-    ?array $group = null,
     ?array $limit = null,
-    ?array $joins = null
+    ?array $joins = null,
+    ?array $group = null,
+    ?array $having = null
 ): array {
 
     $params = [];
-    $query  = "SELECT ";
-
-    $query .= $fields ? implode(", ", $fields) : "*";
+    $query  = "SELECT " . ($fields ? implode(", ", $fields) : "*");
 
     $query .= " FROM `$table`";
 
@@ -84,7 +80,7 @@ function Select(
                     break;
 
                 default:
-                    throw new Exception("Invalid operator '$operator'");
+                    throw new Exception("Invalid operator '$operator' in WHERE");
             }
         }
 
@@ -93,6 +89,40 @@ function Select(
 
     if ($group) {
         $query .= " GROUP BY " . implode(", ", array_map(fn($col) => "`$col`", $group));
+    }
+
+    if ($having) {
+        $havingParts = [];
+
+        foreach ($having as $cond) {
+            [$column, $operator, $value] = $cond;
+
+            switch ($operator) {
+                case '=':
+                case '!=':
+                case '>':
+                case '>=':
+                case '<':
+                case '<=':
+                    $havingParts[] = "$column $operator ?";
+                    $params[] = $value;
+                    break;
+
+                case 'in':
+                    if (!is_array($value)) {
+                        throw new Exception("HAVING IN requires array");
+                    }
+                    $placeholders = implode(", ", array_fill(0, count($value), "?"));
+                    $havingParts[] = "$column IN ($placeholders)";
+                    $params = array_merge($params, $value);
+                    break;
+
+                default:
+                    throw new Exception("Invalid operator '$operator' in HAVING");
+            }
+        }
+
+        $query .= " HAVING " . implode(" AND ", $havingParts);
     }
 
     if ($order) {
@@ -109,8 +139,6 @@ function Select(
 
         $query .= implode(", ", $orders);
     }
-
-
 
     if ($limit) {
         if (isset($limit[0])) {

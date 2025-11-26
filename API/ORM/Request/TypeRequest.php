@@ -19,7 +19,7 @@ require 'Table/FieldsAndTables.php';
  * @return array
  * @throws Exception
  */
-function Request(string $type, string $table, ?array $data = null, ?array $where = null, ?array $fields = null,?array $join , ?array $group = null, ?array $order = null, ?array $limit = null): array {
+function Request(string $type, string $table, ?array $data = null, ?array $where = null, ?array $fields = null,?array $join = null , ?array $group = null, ?array $order = null, ?array $limit = null): array {
 
     /** @var array<string,array> $schema */
     $schema = require __DIR__ . '/table/FieldsAndTables.php';
